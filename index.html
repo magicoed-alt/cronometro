@@ -6,10 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Relógio">
+<meta name="apple-mobile-web-app-title" content="Cronômetro">
 <meta name="theme-color" content="#000000">
 <meta name="format-detection" content="telephone=no">
-<title>Relógio</title>
+<title>Cronômetro</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <style>
   :root{ --u:1px; }
@@ -196,16 +198,15 @@
 <div class="layer" id="set"><div class="in">
   <h1>Ajustes</h1>
 
-  <h3>Imagens</h3>
+  <h3>Tela inicial</h3>
   <div class="grp">
-    <div class="it"><div><img class="thumb" id="thLock" alt="">Papel de parede (bloqueio)</div><label class="bt" for="fLock">Escolher</label><input type="file" id="fLock" accept="image/*"></div>
     <div class="it"><div><img class="thumb" id="thHome" alt="">Print da tela inicial</div><label class="bt" for="fHome">Escolher</label><input type="file" id="fHome" accept="image/*"></div>
   </div>
   <p class="note">Use um print da sua tela inicial sem nada aberto. A barra de status do print é apagada, porque o iPhone mostra a barra real (hora e bateria verdadeiras) por cima do webapp.</p>
 
   <h3>Posições na tela inicial</h3>
   <div class="grp">
-    <div class="it"><div>Ícone do Relógio<small id="stClock">Não marcado (qualquer toque abre)</small></div><button id="mClock">Marcar</button></div>
+    <div class="it"><div>Ícone do Relógio (abre o cronômetro)<small id="stClock">Não marcado (qualquer toque abre)</small></div><button id="mClock">Marcar</button></div>
     <div class="it"><div>Badge do pick (N − 21)<small id="stBadge">Automático (no ícone do Relógio)</small></div><button id="mBadge">Marcar</button></div>
     <div class="it"><div>Mostrar badge do pick</div><label class="sw2"><input type="checkbox" id="oBadge"><span></span></label></div>
   </div>
@@ -226,7 +227,7 @@
 
   <button class="big" id="bBack">Fechar ajustes</button>
   <button class="big" id="bClose" style="background:#fff;color:#007aff;margin-top:10px">Ir para a tela bloqueada</button>
-  <div class="ver">Cronômetro — <b>Versão 1.1</b><br>Eduardo Braz · Digital Magic</div>
+  <div class="ver">Cronômetro — <b>Versão 1.2</b><br>Eduardo Braz · Digital Magic</div>
   <p class="note" style="text-align:center;margin-top:10px">Atalhos escondidos: arrastar dois dedos para baixo em qualquer tela = Ajustes · deslizar para cima na barra de abas do cronômetro = volta à tela inicial · 3 toques no topo da tela inicial = volta à tela bloqueada</p>
 </div></div>
 
@@ -240,7 +241,7 @@
 <script>
 (function(){
 "use strict";
-var VERSAO = "1.1";
+var VERSAO = "1.2";
 
 /* ---------------- utilidades ---------------- */
 var $ = function(id){ return document.getElementById(id); };
@@ -280,13 +281,12 @@ function dbGet(key, cb){
 }
 var lockURL = null, homeImg = null, homeURL = null;
 function loadImages(cb){
-  dbGet("lock", function(b){
-    if (b){ lockURL = URL.createObjectURL(b); setLockWall(); }
+  (function(){
     dbGet("home", function(b2){
       if (b2){ homeURL = URL.createObjectURL(b2); var im = new Image(); im.onload = function(){ homeImg = im; drawHome(); placeBadge(); cb && cb(); }; im.src = homeURL; }
       else cb && cb();
     });
-  });
+  })();
 }
 function setLockWall(){
   if (!lockURL) return;
@@ -319,7 +319,11 @@ $("lock").addEventListener("pointermove", function(e){
   if (Math.abs(e.clientY - lockStartY) > 12 && lockTimer){ clearTimeout(lockTimer); lockTimer = null; }
   if (lockStartY - e.clientY > 70){ lockStartY = null; openPass(); }
 });
-["pointerup","pointercancel"].forEach(function(t){ $("lock").addEventListener(t, function(){ lockStartY = null; if (lockTimer){ clearTimeout(lockTimer); lockTimer = null; } }); });
+$("lock").addEventListener("pointerup", function(e){
+  if (lockStartY !== null && !multi && Math.abs(e.clientY - lockStartY) < 15) openPass();
+  lockStartY = null;
+});
+$("lock").addEventListener("pointercancel", function(){ lockStartY = null; });
 
 /* ---------------- CÓDIGO ---------------- */
 var code = "";
@@ -543,7 +547,6 @@ function refreshSet(){
   $("stClock").textContent = CFG.clock ? "Marcado" : "Não marcado (qualquer toque abre)";
   $("stBadge").textContent = CFG.badgePos ? "Marcado" : "Automático (no canto do ícone do Relógio)";
   $("stN").textContent = (CFG.N === null || CFG.N === undefined) ? "—" : CFG.N + "  (pick: " + (CFG.N - 21) + ")";
-  if (lockURL) $("thLock").src = lockURL;
   if (homeURL) $("thHome").src = homeURL;
 }
 var cameFrom = "lock";
@@ -557,10 +560,6 @@ function openSettings(){
   $(a[0]).addEventListener("click", function(e){ var v = e.target.dataset && e.target.dataset.v; if (!v) return; CFG[a[1]] = a[2](v); save(); refreshSet(); });
 });
 $("oBadge").addEventListener("change", function(){ CFG.badge = this.checked; save(); placeBadge(); });
-$("fLock").addEventListener("change", function(){
-  var f = this.files[0]; if (!f) return;
-  dbPut("lock", f, function(){ if (lockURL) URL.revokeObjectURL(lockURL); lockURL = URL.createObjectURL(f); setLockWall(); refreshSet(); });
-});
 $("fHome").addEventListener("change", function(){
   var f = this.files[0]; if (!f) return;
   dbPut("home", f, function(){
