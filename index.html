@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Relógio">
+<meta name="theme-color" content="#000000">
+<meta name="format-detection" content="telephone=no">
+<title>Relógio</title>
+<style>
+  :root{ --u:1px; --H:932px; }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none}
+  .layer{position:fixed;left:0;top:0;width:100vw;height:var(--H);overflow:hidden;display:none}
+  .layer.on{display:block}
+
+  /* ---------- TELA BLOQUEADA ---------- */
+  #lock{background:#0b1020}
+  .wall{position:absolute;inset:0;background-size:cover;background-position:center}
+  .wall.default{background:linear-gradient(160deg,#25406e 0%,#0d1730 45%,#3b1f52 100%)}
+  #lockDate{position:absolute;left:0;right:0;top:calc(92*var(--u));text-align:center;
+    font-size:calc(21*var(--u));font-weight:600;color:rgba(255,255,255,.92);letter-spacing:.2px}
+  #lockTime{position:absolute;left:0;right:0;top:calc(126*var(--u));text-align:center;
+    font-size:calc(108*var(--u));font-weight:600;line-height:1;color:rgba(255,255,255,.95);
+    font-variant-numeric:tabular-nums;letter-spacing:-1px}
+  .lockBtn{position:absolute;width:calc(50*var(--u));height:calc(50*var(--u));border-radius:50%;
+    background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+    display:grid;place-items:center;top:calc(836*var(--u))}
+  .lockBtn svg{width:calc(22*var(--u));height:calc(22*var(--u))}
+
+  /* ---------- CÓDIGO ---------- */
+  #pass{background:#000}
+  #passBg{position:absolute;inset:-60px;background-size:cover;background-position:center;filter:blur(30px) brightness(.62) saturate(1.2);transform:scale(1.1)}
+  #passBg.default{background:linear-gradient(160deg,#25406e 0%,#0d1730 45%,#3b1f52 100%)}
+  #passTitle{position:absolute;left:0;right:0;top:calc(192*var(--u));text-align:center;font-size:calc(20*var(--u));font-weight:400}
+  #dots{position:absolute;left:0;right:0;top:calc(238*var(--u));display:flex;justify-content:center;gap:calc(24*var(--u))}
+  .dot{width:calc(13*var(--u));height:calc(13*var(--u));border-radius:50%;border:calc(1.3*var(--u)) solid #fff;transition:background .08s}
+  .dot.f{background:#fff}
+  #dots.shake{animation:shake .4s}
+  @keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+  .key{position:absolute;width:calc(80*var(--u));height:calc(80*var(--u));margin:calc(-40*var(--u)) 0 0 calc(-40*var(--u));
+    border-radius:50%;background:rgba(255,255,255,.17);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:background .25s}
+  .key.p{background:rgba(255,255,255,.55);transition:none}
+  .key b{font-size:calc(37*var(--u));font-weight:300;line-height:1}
+  .key i{font-style:normal;font-size:calc(10*var(--u));font-weight:700;letter-spacing:calc(2*var(--u));margin-top:calc(1*var(--u))}
+  .passTxt{position:absolute;font-size:calc(17*var(--u));top:calc(758*var(--u));transform:translateX(-50%)}
+
+  /* ---------- HOME ---------- */
+  #home{background:#000}
+  #homeCanvas{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 50%}
+  #homeEmpty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:40px;color:#aaa;font-size:16px;
+    background:linear-gradient(160deg,#4a7ec4,#b9c9de)}
+  #press{position:absolute;display:none;border-radius:23%;background:rgba(0,0,0,.32);pointer-events:none}
+  #badge{position:absolute;display:none;min-width:calc(23*var(--u));height:calc(23*var(--u));padding:0 calc(6.5*var(--u));
+    border-radius:calc(12*var(--u));background:#ff3b30;color:#fff;font-size:calc(15*var(--u));font-weight:500;
+    line-height:calc(23*var(--u));text-align:center;transform:translate(-50%,-50%);font-variant-numeric:tabular-nums;pointer-events:none}
+
+  /* ---------- CRONÔMETRO ---------- */
+  #app{background:#000;z-index:5}
+  #sw{position:absolute;left:0;top:0;pointer-events:none}
+  .cbtn{position:absolute;width:calc(84*var(--u));height:calc(84*var(--u));border-radius:50%;top:calc(430*var(--u));
+    display:grid;place-items:center;font-size:calc(17*var(--u));font-weight:400;transition:opacity .12s}
+  .cbtn.down{opacity:.65}
+  #btnL{left:calc(16*var(--u))}
+  #btnR{left:calc(330*var(--u))}
+  .gray{background:#2c2c2c;color:#f7f7f7}
+  .gray.dis{background:#1c1c1e;color:#8e8e93}
+  .green{background:#092414;color:#5fd068}
+  .red{background:#350e0e;color:#ff453a}
+  #pdots{position:absolute;top:calc(468.5*var(--u));left:calc(202.5*var(--u));display:flex;gap:calc(9.5*var(--u))}
+  #pdots span{width:calc(7.3*var(--u));height:calc(7.3*var(--u));border-radius:50%;background:#fff}
+  #pdots span+span{background:#6e6e73}
+  #laps{position:absolute;left:calc(16*var(--u));right:calc(16*var(--u));top:calc(530*var(--u));border-top:1px solid #222}
+  .lap{height:calc(43.5*var(--u));border-bottom:1px solid #262626;display:flex;align-items:center;justify-content:space-between;
+    font-size:calc(17*var(--u));font-variant-numeric:tabular-nums}
+  .lap.best{color:#30d158}.lap.worst{color:#ff453a}
+  #tabbar{position:absolute;left:calc(21*var(--u));width:calc(388*var(--u));top:calc(849*var(--u));height:calc(62*var(--u));
+    border-radius:calc(31*var(--u));background:#212121;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+  #tabsel{position:absolute;left:calc(189*var(--u));width:calc(102*var(--u));top:calc(4*var(--u));height:calc(54*var(--u));
+    border-radius:calc(27*var(--u));background:#0b0b0b}
+  .tab{position:absolute;top:0;height:100%;width:calc(90*var(--u));margin-left:calc(-45*var(--u));text-align:center}
+  .tab svg{position:absolute;left:50%;top:calc(12*var(--u));width:calc(24*var(--u));height:calc(24*var(--u));margin-left:calc(-12*var(--u))}
+  .tab span{position:absolute;left:0;right:0;top:calc(38*var(--u));font-size:calc(11.6*var(--u));font-weight:600;color:#f2f2f2;letter-spacing:.1px}
+  .tab.sel span{color:#ff9230}
+
+  /* transição de abrir/fechar (igual ao vídeo: crossfade rápido) */
+  .fadeIn{animation:fin .26s cubic-bezier(.3,.0,.2,1) forwards}
+  .fadeOut{animation:fout .26s cubic-bezier(.3,.0,.2,1) forwards}
+  @keyframes fin{from{opacity:0}to{opacity:1}}
+  @keyframes fout{from{opacity:1}to{opacity:0}}
+  .unlockIn{animation:uin .38s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes uin{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
+
+  /* ---------- AJUSTES ---------- */
+  #set{z-index:20;background:#f2f2f7;color:#000;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  #set .in{padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 30px);max-width:520px;margin:0 auto}
+  #set h1{font-size:30px;font-weight:700;margin:8px 4px 14px}
+  #set h3{font-size:13px;font-weight:400;color:#6d6d72;text-transform:uppercase;margin:20px 16px 7px}
+  .grp{background:#fff;border-radius:12px;overflow:hidden}
+  .it{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;padding:10px 16px;border-bottom:1px solid #e5e5ea;font-size:16px}
+  .it:last-child{border-bottom:0}
+  .it small{display:block;color:#8e8e93;font-size:13px;margin-top:2px}
+  .it button,.it label.bt{color:#007aff;background:none;border:0;font-size:16px;font-family:inherit;cursor:pointer;white-space:nowrap}
+  .seg{display:flex;background:#e3e3e8;border-radius:8px;padding:2px}
+  .seg button{border:0;background:none;padding:5px 12px;border-radius:7px;font-size:14px;color:#000;font-family:inherit}
+  .seg button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .sw2{position:relative;width:51px;height:31px;flex:none}
+  .sw2 input{opacity:0;width:0;height:0}
+  .sw2 span{position:absolute;inset:0;background:#e9e9ea;border-radius:31px;transition:.2s}
+  .sw2 span:before{content:"";position:absolute;width:27px;height:27px;left:2px;top:2px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:.2s}
+  .sw2 input:checked+span{background:#34c759}
+  .sw2 input:checked+span:before{transform:translateX(20px)}
+  .note{font-size:13px;color:#6d6d72;margin:7px 16px 0;line-height:1.4}
+  .big{display:block;width:100%;margin-top:22px;height:50px;border:0;border-radius:12px;background:#007aff;color:#fff;font-size:17px;font-weight:600;font-family:inherit}
+  .ver{text-align:center;color:#8e8e93;font-size:14px;margin-top:18px}
+  .thumb{width:34px;height:60px;border-radius:5px;object-fit:cover;background:#ddd;margin-right:8px;vertical-align:middle}
+
+  /* marcação de posição */
+  #mark{z-index:30;background:#000}
+  #markImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #markTip{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 70px);background:rgba(0,0,0,.78);color:#fff;
+    border-radius:14px;padding:12px 14px;font-size:15px;text-align:center;line-height:1.35}
+  #markDot{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;border:3px solid #00dcff;display:none;box-shadow:0 0 0 2px #000}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<!-- TELA BLOQUEADA -->
+<div class="layer on" id="lock">
+  <div class="wall default" id="lockWall"></div>
+  <div id="lockDate"></div>
+  <div id="lockTime"></div>
+  <div class="lockBtn" style="left:calc(43*var(--u))">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M8 2h8v3l-2 4v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V9L8 5z"/><circle cx="12" cy="13" r="1.3" fill="#000"/></svg>
+  </div>
+  <div class="lockBtn" style="left:calc(337*var(--u))">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M9 4h6l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5z"/><circle cx="12" cy="13" r="4" fill="none" stroke="#000" stroke-width="1.8"/></svg>
+  </div>
+</div>
+
+<!-- CÓDIGO -->
+<div class="layer" id="pass">
+  <div id="passBg" class="default"></div>
+  <div id="passTitle">Digite o Código</div>
+  <div id="dots"></div>
+  <div id="keys"></div>
+  <div class="passTxt" style="left:calc(105*var(--u))">Emergência</div>
+  <div class="passTxt" id="passCancel" style="left:calc(325*var(--u))">Cancelar</div>
+</div>
+
+<!-- HOME (print) -->
+<div class="layer" id="home">
+  <canvas id="homeCanvas"></canvas>
+  <div id="homeEmpty">Coloque o print da sua tela inicial em Ajustes<br><br>(segure 2 s no relógio da tela bloqueada)</div>
+  <div id="press"></div>
+  <div id="badge"></div>
+</div>
+
+<!-- CRONÔMETRO -->
+<div class="layer" id="app">
+  <canvas id="sw"></canvas>
+  <div class="cbtn gray dis" id="btnL">Volta</div>
+  <div class="cbtn green" id="btnR">Iniciar</div>
+  <div id="pdots"><span></span><span></span></div>
+  <div id="laps"></div>
+  <div id="tabbar">
+    <div id="tabsel"></div>
+    <div class="tab" style="left:calc(55*var(--u))">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f2f2f2" stroke-width="1.7"><circle cx="12" cy="12" r="9.6"/><ellipse cx="12" cy="12" rx="4.3" ry="9.6"/><path d="M2.6 9h18.8M2.6 15h18.8M12 2.4v19.2"/></svg>
+      <span>Relógio</span></div>
+    <div class="tab" style="left:calc(147*var(--u))">
+      <svg viewBox="0 0 24 24"><path d="M2.2 6.3a3.6 3.6 0 0 1 5-4.2zM21.8 6.3a3.6 3.6 0 0 0-5-4.2z" fill="#f2f2f2"/><circle cx="12" cy="13" r="8.6" fill="#f2f2f2"/><path d="M12 8.2V13.6h3.6" stroke="#000" stroke-width="1.9" fill="none" stroke-linecap="round"/><path d="M6 19.6l-1.8 2.2M18 19.6l1.8 2.2" stroke="#f2f2f2" stroke-width="1.9" stroke-linecap="round"/></svg>
+      <span>Alarmes</span></div>
+    <div class="tab sel" style="left:calc(240*var(--u))">
+      <svg viewBox="0 0 24 24"><rect x="10.6" y="0.6" width="2.8" height="4" rx="1" fill="#ff9230"/><path d="M18.6 4.6l1.7 1.7" stroke="#ff9230" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="13.4" r="9.4" fill="#ff9230"/><path d="M12 7.4v6.4" stroke="#000" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="13.9" r="1.6" fill="#000"/></svg>
+      <span>Cronômetro</span></div>
+    <div class="tab" style="left:calc(333*var(--u))">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f2f2f2" stroke-width="2" stroke-linecap="round"><path d="M12 2.6a9.4 9.4 0 1 1-6.6 2.7"/><path d="M12 2.6v3.2"/><path d="M8.2 8.4l4.3 4.1" stroke-width="2.4"/></svg>
+      <span>Timers</span></div>
+  </div>
+</div>
+
+<!-- AJUSTES -->
+<div class="layer" id="set"><div class="in">
+  <h1>Ajustes</h1>
+
+  <h3>Imagens</h3>
+  <div class="grp">
+    <div class="it"><div><img class="thumb" id="thLock" alt="">Papel de parede (bloqueio)</div><label class="bt" for="fLock">Escolher</label><input type="file" id="fLock" accept="image/*"></div>
+    <div class="it"><div><img class="thumb" id="thHome" alt="">Print da tela inicial</div><label class="bt" for="fHome">Escolher</label><input type="file" id="fHome" accept="image/*"></div>
+  </div>
+  <p class="note">Use um print da sua tela inicial sem nada aberto. A barra de status do print é apagada, porque o iPhone mostra a barra real (hora e bateria verdadeiras) por cima do webapp.</p>
+
+  <h3>Posições na tela inicial</h3>
+  <div class="grp">
+    <div class="it"><div>Ícone do Relógio<small id="stClock">Não marcado (qualquer toque abre)</small></div><button id="mClock">Marcar</button></div>
+    <div class="it"><div>Badge do pick (N − 21)<small id="stBadge">Automático (no ícone do Relógio)</small></div><button id="mBadge">Marcar</button></div>
+    <div class="it"><div>Mostrar badge do pick</div><label class="sw2"><input type="checkbox" id="oBadge"><span></span></label></div>
+  </div>
+
+  <h3>Código da tela bloqueada</h3>
+  <div class="grp">
+    <div class="it"><div>Tamanho do código</div><div class="seg" id="segLen"><button data-v="4">4 dígitos</button><button data-v="6">6 dígitos</button></div></div>
+    <div class="it"><div>Onde está o número</div><div class="seg" id="segPos"><button data-v="ini">Início</button><button data-v="fim">Final</button></div></div>
+    <div class="it"><div>Dígitos do número</div><div class="seg" id="segDig"><button data-v="2">2</button><button data-v="3">3</button></div></div>
+  </div>
+  <p class="note">Exemplo com 4 dígitos, número no início e 2 dígitos: código 4518 → número 45, badge 24.</p>
+
+  <h3>Force do cronômetro</h3>
+  <div class="grp">
+    <div class="it"><div>Número atual<small id="stN">—</small></div><button id="bTest">Testar 45</button></div>
+  </div>
+  <p class="note">Ao parar, os centésimos são trocados para que minutos + segundos + centésimos = número. Para funcionar, o espectador precisa parar antes do número de segundos (ex.: com 45, parar antes de 00:45). Se passar, mostra o tempo real.</p>
+
+  <button class="big" id="bClose">Voltar para a tela bloqueada</button>
+  <div class="ver">Cronômetro — <b>Versão 1.0</b><br>Eduardo Braz · Digital Magic</div>
+  <p class="note" style="text-align:center;margin-top:10px">Atalhos escondidos: segurar 2 s no relógio da tela bloqueada = Ajustes · deslizar para cima na barra de abas do cronômetro = volta à tela inicial · 3 toques no topo da tela inicial = volta à tela bloqueada</p>
+</div></div>
+
+<!-- MARCAÇÃO -->
+<div class="layer" id="mark">
+  <img id="markImg" alt="">
+  <div id="markTip"></div>
+  <div id="markDot"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var VERSAO = "1.0";
+
+/* ---------------- utilidades ---------------- */
+var $ = function(id){ return document.getElementById(id); };
+var W = 430, H = 932, U = 1;
+function layout(){
+  W = window.innerWidth; H = window.innerHeight;
+  U = W / 430;
+  document.documentElement.style.setProperty("--u", U + "px");
+  document.documentElement.style.setProperty("--H", H + "px");
+  // posições verticais medidas no iPhone de 932 pt: se a tela for mais baixa, comprime proporcionalmente
+  drawHome(); drawSW(); placeBadge();
+}
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+var CFG = { len:4, pos:"ini", dig:2, badge:true, clock:null, badgePos:null, N:null };
+try { var s = JSON.parse(localStorage.getItem("crono_cfg") || "null"); if (s) for (var k in s) CFG[k] = s[k]; } catch(e){}
+function save(){ try { localStorage.setItem("crono_cfg", JSON.stringify(CFG)); } catch(e){} }
+
+/* imagens guardadas no IndexedDB (prints são grandes demais para localStorage) */
+var db = null;
+function dbOpen(cb){
+  try{
+    var r = indexedDB.open("crono_img", 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore("img"); };
+    r.onsuccess = function(){ db = r.result; cb(); };
+    r.onerror = function(){ cb(); };
+  }catch(e){ cb(); }
+}
+function dbPut(key, blob, cb){
+  if (!db) return cb && cb();
+  var tx = db.transaction("img","readwrite"); tx.objectStore("img").put(blob, key);
+  tx.oncomplete = function(){ cb && cb(); };
+}
+function dbGet(key, cb){
+  if (!db) return cb(null);
+  var rq = db.transaction("img").objectStore("img").get(key);
+  rq.onsuccess = function(){ cb(rq.result || null); }; rq.onerror = function(){ cb(null); };
+}
+var lockURL = null, homeImg = null, homeURL = null;
+function loadImages(cb){
+  dbGet("lock", function(b){
+    if (b){ lockURL = URL.createObjectURL(b); setLockWall(); }
+    dbGet("home", function(b2){
+      if (b2){ homeURL = URL.createObjectURL(b2); var im = new Image(); im.onload = function(){ homeImg = im; drawHome(); placeBadge(); cb && cb(); }; im.src = homeURL; }
+      else cb && cb();
+    });
+  });
+}
+function setLockWall(){
+  if (!lockURL) return;
+  $("lockWall").classList.remove("default"); $("lockWall").style.backgroundImage = "url(" + lockURL + ")";
+  $("passBg").classList.remove("default"); $("passBg").style.backgroundImage = "url(" + lockURL + ")";
+}
+
+/* ---------------- camadas ---------------- */
+function show(id){ $(id).classList.add("on"); }
+function hide(id){ $(id).classList.remove("on"); }
+function only(id){ ["lock","pass","home","app","set","mark"].forEach(function(x){ if (x !== id) hide(x); }); show(id); }
+
+/* ---------------- TELA BLOQUEADA ---------------- */
+var DIAS = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+var MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function tickLock(){
+  var d = new Date();
+  $("lockDate").textContent = DIAS[d.getDay()] + ", " + d.getDate() + " de " + MESES[d.getMonth()];
+  $("lockTime").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+setInterval(tickLock, 1000); tickLock();
+
+var lockStartY = null, lockTimer = null;
+$("lock").addEventListener("pointerdown", function(e){
+  lockStartY = e.clientY;
+  var r = $("lockTime").getBoundingClientRect();
+  if (e.clientY >= r.top - 20 && e.clientY <= r.bottom + 20){
+    lockTimer = setTimeout(function(){ lockStartY = null; openSettings(); }, 1800);
+  }
+});
+$("lock").addEventListener("pointermove", function(e){
+  if (lockStartY === null) return;
+  if (Math.abs(e.clientY - lockStartY) > 12 && lockTimer){ clearTimeout(lockTimer); lockTimer = null; }
+  if (lockStartY - e.clientY > 70){ lockStartY = null; openPass(); }
+});
+["pointerup","pointercancel"].forEach(function(t){ $("lock").addEventListener(t, function(){ lockStartY = null; if (lockTimer){ clearTimeout(lockTimer); lockTimer = null; } }); });
+
+/* ---------------- CÓDIGO ---------------- */
+var code = "";
+var KEYS = [["1",""],["2","ABC"],["3","DEF"],["4","GHI"],["5","JKL"],["6","MNO"],["7","PQRS"],["8","TUV"],["9","WXYZ"],null,["0",""],null];
+(function buildKeys(){
+  var box = $("keys"), cx = [105,215,325], cy = [349,448,547,646];
+  KEYS.forEach(function(k, i){
+    if (!k) return;
+    var el = document.createElement("div"); el.className = "key";
+    el.style.left = "calc(" + cx[i%3] + "*var(--u))"; el.style.top = "calc(" + cy[Math.floor(i/3)] + "*var(--u))";
+    el.innerHTML = "<b>" + k[0] + "</b>" + (k[1] ? "<i>" + k[1] + "</i>" : "");
+    if (k[0] === "0" || k[0] === "1") el.querySelector("b").style.marginTop = "calc(2*var(--u))";
+    el.addEventListener("pointerdown", function(ev){ ev.preventDefault(); el.classList.add("p"); typeDigit(k[0]); });
+    ["pointerup","pointerleave","pointercancel"].forEach(function(t){ el.addEventListener(t, function(){ el.classList.remove("p"); }); });
+    box.appendChild(el);
+  });
+})();
+function drawDots(){
+  var h = ""; for (var i=0;i<CFG.len;i++) h += '<div class="dot' + (i < code.length ? " f" : "") + '"></div>';
+  $("dots").innerHTML = h;
+  $("passCancel").textContent = code.length ? "Apagar" : "Cancelar";
+}
+function openPass(){ code = ""; drawDots(); show("pass"); $("pass").classList.remove("fadeOut"); $("pass").classList.add("fadeIn"); setTimeout(function(){ hide("lock"); $("pass").classList.remove("fadeIn"); }, 260); }
+$("passCancel").addEventListener("pointerdown", function(){
+  if (code.length){ code = code.slice(0,-1); drawDots(); }
+  else { show("lock"); hide("pass"); }
+});
+function typeDigit(d){
+  if (code.length >= CFG.len) return;
+  code += d; drawDots();
+  if (code.length === CFG.len) setTimeout(unlock, 160);
+}
+function unlock(){
+  var part = CFG.pos === "ini" ? code.slice(0, CFG.dig) : code.slice(-CFG.dig);
+  var n = parseInt(part, 10);
+  if (!isNaN(n)) { CFG.N = n; save(); }
+  resetSW();
+  placeBadge();
+  show("home"); $("home").classList.add("unlockIn");
+  $("pass").classList.add("fadeOut");
+  setTimeout(function(){ hide("pass"); $("pass").classList.remove("fadeOut"); $("home").classList.remove("unlockIn"); }, 380);
+}
+
+/* ---------------- HOME ---------------- */
+function drawHome(){
+  var c = $("homeCanvas");
+  if (!homeImg){ $("homeEmpty").style.display = "grid"; return; }
+  $("homeEmpty").style.display = "none";
+  var dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  var ctx = c.getContext("2d");
+  // "cover"
+  var iw = homeImg.naturalWidth, ih = homeImg.naturalHeight;
+  var sc = Math.max(c.width / iw, c.height / ih);
+  var dw = iw * sc, dh = ih * sc, dx = (c.width - dw) / 2, dy = (c.height - dh) / 2;
+  ctx.drawImage(homeImg, dx, dy, dw, dh);
+  // apaga a barra de status do print: estica uma linha de pixels logo abaixo dela
+  var sbh = Math.round(58 * U * dpr);          // altura da barra de status (pt -> px)
+  var srcY = Math.round((sbh + 2*dpr - dy) / sc);
+  srcY = Math.max(0, Math.min(ih - 2, srcY));
+  ctx.drawImage(homeImg, 0, srcY, iw, 2, dx, 0, dw, sbh + 2*dpr);
+}
+function iconXY(){ return CFG.clock ? { x: CFG.clock[0] * W, y: CFG.clock[1] * H } : null; }
+function placeBadge(){
+  var b = $("badge");
+  if (!CFG.badge || CFG.N === null || CFG.N === undefined){ b.style.display = "none"; return; }
+  var v = CFG.N - 21;
+  b.textContent = v;
+  var x, y;
+  if (CFG.badgePos){ x = CFG.badgePos[0] * W; y = CFG.badgePos[1] * H; }
+  else if (CFG.clock){ x = CFG.clock[0] * W + 29 * U; y = CFG.clock[1] * H - 29 * U; }
+  else { b.style.display = "none"; return; }
+  b.style.left = x + "px"; b.style.top = y + "px"; b.style.display = "block";
+}
+var hp = null, taps = [];
+$("home").addEventListener("pointerdown", function(e){
+  hp = { x: e.clientX, y: e.clientY, t: Date.now() };
+  // 3 toques no topo = volta à tela bloqueada
+  if (e.clientY < 70 * U){
+    var now = Date.now(); taps = taps.filter(function(t){ return now - t < 700; }); taps.push(now);
+    if (taps.length >= 3){ taps = []; hp = null; only("lock"); return; }
+  }
+  var ic = iconXY(), size = 66.5 * U;
+  var cx = ic ? ic.x : e.clientX, cy = ic ? ic.y : e.clientY;
+  if (ic && (Math.abs(e.clientX - ic.x) > size/2 + 6 || Math.abs(e.clientY - ic.y) > size/2 + 6)){ hp.miss = true; return; }
+  var p = $("press");
+  p.style.left = (cx - size/2) + "px"; p.style.top = (cy - size/2) + "px"; p.style.width = size + "px"; p.style.height = size + "px";
+  p.style.display = "block";
+});
+$("home").addEventListener("pointerup", function(e){
+  $("press").style.display = "none";
+  if (!hp || hp.miss) { hp = null; return; }
+  var moved = Math.abs(e.clientX - hp.x) + Math.abs(e.clientY - hp.y);
+  hp = null;
+  if (moved > 14) return;
+  openApp();
+});
+$("home").addEventListener("pointercancel", function(){ $("press").style.display = "none"; hp = null; });
+
+function openApp(){
+  // como no vídeo: o ícone escurece um instante e a tela faz um crossfade rápido para o app
+  var p = $("press"); p.style.display = "block";
+  setTimeout(function(){
+    p.style.display = "none";
+    show("app"); $("app").classList.remove("fadeOut"); $("app").classList.add("fadeIn");
+    drawSW();
+    setTimeout(function(){ $("app").classList.remove("fadeIn"); hide("home"); }, 270);
+  }, 110);
+}
+function closeApp(){
+  show("home"); $("app").classList.add("fadeOut");
+  setTimeout(function(){ hide("app"); $("app").classList.remove("fadeOut"); }, 270);
+}
+
+/* ---------------- CRONÔMETRO ---------------- */
+var running = false, base = 0, startT = 0, laps = [];   // laps = tempos (ms) das voltas fechadas
+function elapsed(){ return running ? base + (performance.now() - startT) : base; }
+function fmt(ms){
+  var cs = Math.floor(ms / 10), c = cs % 100, s = Math.floor(cs / 100) % 60, m = Math.floor(cs / 6000);
+  return pad(m) + ":" + pad(s) + "," + pad(c);
+}
+var swCanvas = $("sw"), swCtx = swCanvas.getContext("2d"), swFont = null;
+function measureFont(){
+  var ctx = swCtx, test = 100;
+  ctx.font = "200 " + test + "px -apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
+  var w0 = 0; for (var d=0; d<10; d++) w0 = Math.max(w0, ctx.measureText(String(d)).width);
+  var wc = ctx.measureText(":").width, wk = ctx.measureText(",").width;
+  var total = 6*w0 + wc + wk;
+  var size = test * (341 * U) / total;                     // mesma largura do iPhone: 341 pt
+  ctx.font = "200 " + size + "px -apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
+  var asc = ctx.measureText("0").actualBoundingBoxAscent || size * 0.72;
+  swFont = { size:size, w0:w0*size/test, wc:wc*size/test, wk:wk*size/test, asc:asc };
+}
+function drawSW(){
+  if (!$("app").classList.contains("on")) return;
+  var dpr = window.devicePixelRatio || 1;
+  var cw = Math.round(W * dpr), ch = Math.round(300 * U * dpr);
+  if (swCanvas.width !== cw || swCanvas.height !== ch){
+    swCanvas.width = cw; swCanvas.height = ch; swCanvas.style.width = W + "px"; swCanvas.style.height = (300*U) + "px";
+    swFont = null;
+  }
+  var ctx = swCtx;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if (!swFont) measureFont();
+  ctx.clearRect(0,0,W,300*U);
+  ctx.fillStyle = "#fff"; ctx.textBaseline = "alphabetic";
+  ctx.font = "200 " + swFont.size + "px -apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
+  var txt = fmt(elapsed()), x = 44.7 * U, y = 192 * U + swFont.asc;
+  for (var i=0; i<txt.length; i++){
+    var ch1 = txt[i], cell = ch1 === ":" ? swFont.wc : ch1 === "," ? swFont.wk : swFont.w0;
+    var gw = ctx.measureText(ch1).width;
+    ctx.fillText(ch1, x + (cell - gw)/2, y);
+    x += cell;
+  }
+  drawLaps();
+}
+function drawLaps(){
+  var box = $("laps");
+  if (!running && base === 0 && laps.length === 0){ box.innerHTML = ""; return; }
+  var sum = laps.reduce(function(a,b){ return a+b; }, 0);
+  var cur = elapsed() - sum;
+  var rows = ['<div class="lap"><span>Volta ' + (laps.length + 1) + '</span><span>' + fmt(cur) + '</span></div>'];
+  var best = -1, worst = -1;
+  if (laps.length >= 2){
+    var mn = Math.min.apply(null, laps), mx = Math.max.apply(null, laps);
+    best = laps.indexOf(mn); worst = laps.indexOf(mx);
+  }
+  for (var i = laps.length - 1; i >= 0; i--){
+    var cls = i === best ? " best" : i === worst ? " worst" : "";
+    rows.push('<div class="lap' + cls + '"><span>Volta ' + (i+1) + '</span><span>' + fmt(laps[i]) + '</span></div>');
+  }
+  var h = rows.join("");
+  if (box._h !== h){ box.innerHTML = h; box._h = h; }
+}
+function loop(){ if (running){ drawSW(); requestAnimationFrame(loop); } }
+function setButtons(){
+  var L = $("btnL"), R = $("btnR");
+  if (running){ L.className = "cbtn gray"; L.textContent = "Volta"; R.className = "cbtn red"; R.textContent = "Parar"; }
+  else if (base > 0){ L.className = "cbtn gray"; L.textContent = "Zerar"; R.className = "cbtn green"; R.textContent = "Iniciar"; }
+  else { L.className = "cbtn gray dis"; L.textContent = "Volta"; R.className = "cbtn green"; R.textContent = "Iniciar"; }
+}
+function resetSW(){ running = false; base = 0; laps = []; $("laps").innerHTML = ""; $("laps")._h = ""; setButtons(); drawSW(); }
+
+/* o force: ao parar, troca só os centésimos para minutos + segundos + centésimos = N */
+function forceStop(ms){
+  var N = CFG.N;
+  if (N === null || N === undefined) return ms;
+  var cs = Math.floor(ms / 10), s = Math.floor(cs / 100) % 60, m = Math.floor(cs / 6000);
+  var c = N - m - s;
+  if (c < 0 || c > 99) return ms;            // impossível: mantém o tempo real
+  return (m * 60 + s) * 1000 + c * 10 + 5;
+}
+function btnPress(el, fn){
+  el.addEventListener("pointerdown", function(e){ e.preventDefault(); if (el.classList.contains("dis")) return; el.classList.add("down"); fn(); });
+  ["pointerup","pointerleave","pointercancel"].forEach(function(t){ el.addEventListener(t, function(){ el.classList.remove("down"); }); });
+}
+btnPress($("btnR"), function(){
+  if (running){
+    var ms = elapsed(); running = false;
+    var sumPrev = laps.reduce(function(a,b){ return a+b; }, 0);
+    base = Math.max(sumPrev, forceStop(ms));
+  } else { running = true; startT = performance.now(); requestAnimationFrame(loop); }
+  setButtons(); drawSW();
+});
+btnPress($("btnL"), function(){
+  if (running){ var sum = laps.reduce(function(a,b){ return a+b; }, 0); laps.push(elapsed() - sum); drawLaps(); }
+  else if (base > 0){ resetSW(); }
+});
+/* deslizar para cima na barra de abas = volta para a tela inicial falsa */
+var tabY = null;
+$("tabbar").addEventListener("pointerdown", function(e){ tabY = e.clientY; });
+$("app").addEventListener("pointermove", function(e){ if (tabY !== null && tabY - e.clientY > 40){ tabY = null; closeApp(); } });
+$("app").addEventListener("pointerup", function(){ tabY = null; });
+
+/* ---------------- AJUSTES ---------------- */
+function segSet(id, val){ Array.prototype.forEach.call($(id).children, function(b){ b.classList.toggle("on", b.dataset.v === String(val)); }); }
+function refreshSet(){
+  segSet("segLen", CFG.len); segSet("segPos", CFG.pos); segSet("segDig", CFG.dig);
+  $("oBadge").checked = !!CFG.badge;
+  $("stClock").textContent = CFG.clock ? "Marcado" : "Não marcado (qualquer toque abre)";
+  $("stBadge").textContent = CFG.badgePos ? "Marcado" : "Automático (no canto do ícone do Relógio)";
+  $("stN").textContent = (CFG.N === null || CFG.N === undefined) ? "—" : CFG.N + "  (pick: " + (CFG.N - 21) + ")";
+  if (lockURL) $("thLock").src = lockURL;
+  if (homeURL) $("thHome").src = homeURL;
+}
+function openSettings(){ refreshSet(); only("set"); }
+[["segLen","len",Number],["segPos","pos",String],["segDig","dig",Number]].forEach(function(a){
+  $(a[0]).addEventListener("click", function(e){ var v = e.target.dataset && e.target.dataset.v; if (!v) return; CFG[a[1]] = a[2](v); save(); refreshSet(); });
+});
+$("oBadge").addEventListener("change", function(){ CFG.badge = this.checked; save(); placeBadge(); });
+$("fLock").addEventListener("change", function(){
+  var f = this.files[0]; if (!f) return;
+  dbPut("lock", f, function(){ if (lockURL) URL.revokeObjectURL(lockURL); lockURL = URL.createObjectURL(f); setLockWall(); refreshSet(); });
+});
+$("fHome").addEventListener("change", function(){
+  var f = this.files[0]; if (!f) return;
+  dbPut("home", f, function(){
+    if (homeURL) URL.revokeObjectURL(homeURL); homeURL = URL.createObjectURL(f);
+    var im = new Image(); im.onload = function(){ homeImg = im; drawHome(); placeBadge(); refreshSet(); }; im.src = homeURL;
+  });
+});
+$("bTest").addEventListener("click", function(){ CFG.N = 45; save(); refreshSet(); placeBadge(); });
+$("bClose").addEventListener("click", function(){ only("lock"); });
+
+var markWhat = null;
+function startMark(what){
+  if (!homeURL){ alert("Escolha primeiro o print da tela inicial."); return; }
+  markWhat = what;
+  $("markImg").src = homeURL; $("markDot").style.display = "none";
+  $("markTip").textContent = what === "clock" ? "Toque no centro do ícone do Relógio" : "Toque onde o badge vermelho deve ficar (canto superior direito de um ícone)";
+  only("mark");
+}
+$("mClock").addEventListener("click", function(){ startMark("clock"); });
+$("mBadge").addEventListener("click", function(){ startMark("badge"); });
+$("mark").addEventListener("pointerup", function(e){
+  if (!markWhat) return;
+  var d = $("markDot"); d.style.left = e.clientX + "px"; d.style.top = e.clientY + "px"; d.style.display = "block";
+  var v = [e.clientX / W, e.clientY / H];
+  if (markWhat === "clock") CFG.clock = v; else CFG.badgePos = v;
+  save(); markWhat = null;
+  setTimeout(function(){ placeBadge(); openSettings(); }, 350);
+});
+
+/* ---------------- início ---------------- */
+document.addEventListener("touchmove", function(e){ if (!$("set").classList.contains("on")) e.preventDefault(); }, { passive:false });
+document.addEventListener("gesturestart", function(e){ e.preventDefault(); });
+window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", function(){ setTimeout(layout, 300); });
+var wl = null;
+function keepAwake(){ try{ if (navigator.wakeLock && !wl) navigator.wakeLock.request("screen").then(function(x){ wl = x; x.addEventListener("release", function(){ wl = null; }); }).catch(function(){}); }catch(e){} }
+document.addEventListener("pointerdown", keepAwake);
+document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") keepAwake(); });
+
+layout(); setButtons();
+dbOpen(function(){ loadImages(function(){ layout(); }); });
+window.__crono = { CFG:CFG, forceStop:forceStop, fmt:fmt, VERSAO:VERSAO };
+})();
+</script>
+</body>
+</html>
